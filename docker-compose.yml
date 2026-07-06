@@ -1,0 +1,13 @@
+services:
+  net-checker:
+    build: .
+    container_name: net-checker
+    ports:
+      - "${DOCKER_BIND_HOST:-127.0.0.1}:${PORT:-8080}:${PORT:-8080}"
+    volumes:
+      - ${DOCKER_DATA_DIR:-./data}:/data
+    environment:
+      HOST: 0.0.0.0
+      PORT: ${PORT:-8080}
+      CONFIG_PATH: ${DOCKER_CONFIG_PATH:-/data/config.json}
+    restart: unless-stopped

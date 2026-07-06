@@ -1,0 +1,46 @@
+{
+  "proxy": {
+    "enabled": false,
+    "url": "http://host.docker.internal:7890"
+  },
+  "timeout": 10,
+  "autoRefresh": 0,
+  "targets": [
+    {
+      "name": "TMDB",
+      "url": "https://api.themoviedb.org/3/configuration",
+      "expected": [
+        200,
+        401
+      ],
+      "enabled": true
+    },
+    {
+      "name": "Google",
+      "url": "https://www.google.com/generate_204",
+      "expected": [
+        204
+      ],
+      "enabled": true
+    },
+    {
+      "name": "GitHub",
+      "url": "https://github.com/",
+      "expected": [
+        200,
+        301,
+        302
+      ],
+      "enabled": true
+    },
+    {
+      "name": "Docker Hub",
+      "url": "https://registry-1.docker.io/v2/",
+      "expected": [
+        200,
+        401
+      ],
+      "enabled": true
+    }
+  ]
+}
