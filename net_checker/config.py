@@ -8,35 +8,31 @@ from urllib.parse import urlparse
 DEFAULT_CONFIG = {
     "proxy": {
         "enabled": False,
-        "url": "http://host.docker.internal:7890",
+        "url": "http://127.0.0.1:7890",
     },
     "timeout": 10,
     "autoRefresh": 0,
     "targets": [
         {
             "name": "TMDB",
-            "url": "https://api.themoviedb.org/3/configuration",
-            "expected": [200, 401],
-            "enabled": True,
+            "url": "https://api.themoviedb.org",
+            "enabled": True
         },
         {
             "name": "Google",
-            "url": "https://www.google.com/generate_204",
-            "expected": [204],
-            "enabled": True,
+            "url": "https://www.google.com",
+            "enabled": True
         },
         {
             "name": "GitHub",
             "url": "https://github.com/",
-            "expected": [200, 301, 302],
-            "enabled": True,
+            "enabled": True
         },
         {
-            "name": "Docker Hub",
-            "url": "https://registry-1.docker.io/v2/",
-            "expected": [200, 401],
-            "enabled": True,
-        },
+            "name": "DockerHub",
+            "url": "https://hub.docker.com/",
+            "enabled": True
+        }
     ],
 }
 
@@ -57,29 +53,6 @@ def normalize_url(value):
     if not parsed.hostname:
         raise ValueError("目标 URL 缺少域名")
     return url
-
-
-def normalize_expected(value):
-    if isinstance(value, str):
-        parts = [item.strip() for item in value.split(",")]
-    elif isinstance(value, list):
-        parts = value
-    else:
-        parts = []
-
-    codes = []
-    for part in parts:
-        if part == "" or part is None:
-            continue
-        try:
-            code = int(part)
-        except (TypeError, ValueError):
-            raise ValueError(f"无效状态码：{part}")
-        if code < 100 or code > 599:
-            raise ValueError(f"状态码超出范围：{code}")
-        if code not in codes:
-            codes.append(code)
-    return codes or [200, 204, 301, 302, 401, 403]
 
 
 def normalize_proxy(proxy):
@@ -128,7 +101,6 @@ def normalize_config(config):
             {
                 "name": name[:80],
                 "url": url,
-                "expected": normalize_expected(target.get("expected")),
                 "enabled": bool(target.get("enabled", True)),
             }
         )

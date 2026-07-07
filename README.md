@@ -1,24 +1,23 @@
 # net-checker
 
-一个带 Web 面板的网络连通性检测工具，用来确认当前运行环境是否能访问 TMDB、Google、GitHub、Docker Hub，以及你自己添加的域名或 URL。
+一个带 Web 面板的代理访问测试工具，用来确认当前代理是否能访问 TMDB、Google、GitHub、Docker Hub，以及你自己添加的网页 URL，并展示访问耗时。
 
-既可以直接在本机用 Python 运行，也可以放进 Docker 里检测容器网络。
+既可以直接在本机用 Python 运行，也可以放进 Docker 里测试容器内的代理访问情况。
 
 适合这些场景：
 
-- 本地快速确认代理、DNS、HTTP 访问是否正常
+- 本地快速确认代理能不能访问指定网页
 - 容器设置了代理后，确认代理是否生效
-- 排查 Docker 容器内 DNS / HTTP 访问问题
-- 周期性监测几个常用站点或自定义服务
+- 对比不同目标的访问耗时
+- 周期性测试几个常用站点或自定义服务
 - 测试 `host.docker.internal` 代理端口是否能从容器访问
 
 ## 功能
 
-- Web 页面展示检测结果
-- 页面上启用/关闭代理，不需要重启服务
-- 页面上修改默认检测目标
-- 页面上添加、删除、启用、禁用自定义目标
-- 支持自定义期望 HTTP 状态码
+- 首页展示代理访问测试结果和耗时
+- 设置页启用/关闭代理，不需要重启服务
+- 设置页修改默认测试目标
+- 设置页添加、删除、启用、禁用自定义目标
 - 支持自动刷新
 - 配置持久化到 `CONFIG_PATH` 指定的 JSON 文件
 - 后端统一使用 Python Web/API 实现
@@ -26,24 +25,29 @@
 ## 项目结构
 
 ```text
-app.py                # 启动入口
-net_checker/env.py    # .env 和运行参数
-net_checker/config.py # 配置默认值、校验、读写
-net_checker/checks.py # DNS / HTTP 检测逻辑
-net_checker/server.py # API 路由和静态文件服务
-static/               # 前端页面
+app.py                  # 启动入口
+net_checker/env.py      # .env 和运行参数
+net_checker/config.py   # 配置默认值、校验、读写
+net_checker/checks.py   # curl 代理访问测试逻辑
+net_checker/server.py   # API 路由和静态文件服务
+static/index.html       # 首页测试结果
+static/settings.html    # 设置页
+static/common.js        # 前端通用工具
+static/home.js          # 首页逻辑
+static/settings.js      # 设置页逻辑
+static/style.css        # 页面样式和主题
 ```
 
-默认检测目标：
+默认测试目标：
 
-| 名称 | URL | 视为正常的状态码 |
-| --- | --- | --- |
-| TMDB | `https://api.themoviedb.org/3/configuration` | `200,401` |
-| Google | `https://www.google.com/generate_204` | `204` |
-| GitHub | `https://github.com/` | `200,301,302` |
-| Docker Hub | `https://registry-1.docker.io/v2/` | `200,401` |
+| 名称 | URL |
+| --- | --- |
+| TMDB | `https://api.themoviedb.org/3/configuration` |
+| Google | `https://www.google.com/generate_204` |
+| GitHub | `https://github.com/` |
+| Docker Hub | `https://registry-1.docker.io/v2/` |
 
-> TMDB 和 Docker Hub 在没有凭据时返回 `401` 是正常的，说明网络已经连通。
+只要 curl 成功拿到 HTTP 响应，就表示代理访问链路是通的。`401`、`403` 这类状态码通常表示网站拒绝未授权请求，但仍说明代理已经访问到了对方服务。
 
 ## 环境配置
 
@@ -189,12 +193,21 @@ http://127.0.0.1:8080
 
 ## 页面使用
 
+首页只展示“开始测试”和测试结果。测试会使用设置页保存的代理和目标。测试完成后会在标题区显示本次总耗时；如果有失败目标，会出现醒目的“重新测试失败项”按钮。黑色 / 白色主题可以在设置页切换。
+
+点击首页右上角“设置”进入：
+
+```text
+http://127.0.0.1:8080/settings.html
+```
+
 ### 代理设置
 
-在页面的“检测设置”里：
+在设置页的“测试设置”里：
 
 1. 勾选“启用代理”
 2. 填写代理地址
+3. 点击“保存配置”
 
 本地 Python 运行时，如果代理在本机，通常使用：
 
@@ -222,14 +235,13 @@ Linux 下可按实际情况使用：
 - `--network host`
 - Docker Compose 的 `extra_hosts` 配置
 
-### 检测目标
+### 测试目标
 
 每个目标包含：
 
-- 启用：是否参与检测
+- 启用：是否参与测试
 - 名称：页面展示名称
 - URL / 域名：可以写完整 URL，也可以只写域名
-- 期望状态码：逗号分隔，例如 `200,204,301,302,401`
 
 如果只写域名：
 
@@ -253,7 +265,7 @@ https://example.com
 60
 ```
 
-表示每 60 秒检测一次。
+表示首页每 60 秒按保存的配置检测一次。
 
 ## API 使用
 
@@ -277,26 +289,22 @@ curl http://127.0.0.1:8080/api/config
 
 | 字段 | 说明 |
 | --- | --- |
-| 整体 | 综合 DNS 和 HTTP 的结果 |
-| DNS | 当前运行环境的 DNS 解析是否成功 |
-| HTTP | HTTP 请求是否成功且状态码是否符合预期 |
-| 状态码 | 实际 HTTP 状态码 |
-| 耗时 | HTTP 请求总耗时 |
-| 远端 IP | curl 连接到的远端 IP |
-| 说明 | 错误信息、跳转后的最终 URL 或原始 URL |
+| 目标 | 测试目标名称和 URL |
+| 结果 | 代理是否成功拿到 HTTP 响应 |
+| 状态码 | 实际 HTTP 状态码；`401` / `403` 也表示已经访问到对方服务，只是被拒绝授权或禁止访问 |
+| 耗时 | curl 本次测试总耗时，按秒显示。默认先用 HEAD 请求，不跟随跳转；HEAD 失败时再回退到 GET |
+| 失败原因 | 仅失败时显示更易读的失败说明；成功时留空 |
 
 状态含义：
 
-- `OK`：正常
-- `WARN`：请求成功，但状态码不在预期列表内，或 HTTP 正常但 DNS 单独检测失败
-- `FAIL`：请求失败，例如超时、连接失败、TLS 错误、代理不可用等
+- `OK`：curl 成功完成请求，并拿到 HTTP 响应，表示代理能访问到该目标
+- `FAIL`：curl 执行失败，例如连接失败、TLS 握手失败、超时、代理不可用等；失败原因会用中文说明显示在结果表里
 
-## 关于 DNS 和代理
+如果存在失败目标，首页会显示“重新测试失败项”按钮，只重新测试失败的目标，不重复测试已经成功的目标。
 
-DNS 检测使用当前运行环境自身的 DNS 解析能力：
+## 关于代理和 DNS
 
-- 本地 Python 运行时：使用宿主机 DNS
-- Docker 运行时：使用容器内 DNS
+首页的判断以 curl 是否通过代理拿到第一个 HTTP 响应为准，不再用 DNS 结果决定成功或失败。测试会优先使用 HEAD 请求，不跟随跳转，只验证首个响应；如果 HEAD 执行失败，再自动回退到 GET 请求。
 
 HTTP 请求使用 `curl`，如果页面启用了代理，会通过：
 
@@ -308,9 +316,9 @@ curl --proxy <proxy-url>
 
 因此：
 
-- DNS 检测不走 HTTP 代理
-- HTTP 检测会走页面配置的代理
-- 如果你使用 `socks5h://`，curl 的域名解析会交给 SOCKS 代理端处理，但页面里的独立 DNS 检测仍然显示当前运行环境的 DNS 状态
+- HTTP 测试会走页面配置的代理
+- 远端 IP 如果显示 `127.0.0.1` 或 `host.docker.internal`，通常表示 curl 连接到的是本机代理
+- 如果你使用 `socks5h://`，curl 的域名解析会交给 SOCKS 代理端处理
 
 ## 配置文件
 
@@ -329,7 +337,13 @@ Docker Compose 默认映射为：
 容器内：/data/config.json
 ```
 
-删除这个文件并重启服务，会重新生成默认配置。
+`data/config.json` 是本地运行时配置，可能包含代理账号密码，默认不提交到 Git。仓库里提供了安全示例：
+
+```text
+data/config.example.json
+```
+
+删除 `data/config.json` 并重启服务，会按程序内置默认配置重新生成。
 
 ## 安全提醒
 
