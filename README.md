@@ -337,13 +337,9 @@ Docker Compose 默认映射为：
 容器内：/data/config.json
 ```
 
-`data/config.json` 是本地运行时配置，可能包含代理账号密码，默认不提交到 Git。仓库里提供了安全示例：
+`data/config.json` 是本地运行时配置，可能包含代理账号密码，已在 `.gitignore` 中忽略，不提交到 Git。
 
-```text
-data/config.example.json
-```
-
-删除 `data/config.json` 并重启服务，会按程序内置默认配置重新生成。
+默认配置只维护一份，位于 `net_checker/config.py` 的 `DEFAULT_CONFIG`。首次启动没有 `data/config.json` 时会按它自动生成；删除 `data/config.json` 并重启服务，也会按它重新生成。
 
 ## 安全提醒
 
